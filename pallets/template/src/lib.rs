@@ -46,7 +46,13 @@ pub mod pallet {
 		/// Event documentation should end with an array that provides descriptive names for event
 		/// parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
+		SomethingInserted((T::AccountId, T::Index), u32),
 	}
+
+	#[pallet::storage]
+	#[pallet::getter(fn tuple_map)]
+	pub(super) type TupleMap<T: Config> =
+		StorageMap<_, Twox64Concat, (T::AccountId, T::Index), u32, OptionQuery>;
 
 	// Errors inform users that something went wrong.
 	#[pallet::error]
@@ -97,6 +103,19 @@ pub mod pallet {
 					Ok(())
 				},
 			}
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn insert(origin: OriginFor<T>, something: u32) -> DispatchResult {
+			let origin = ensure_signed(origin)?;
+			let nonce = frame_system::Pallet::<T>::account_nonce(&origin);
+			let key = (origin, nonce);
+			TupleMap::<T>::insert(&key, something);
+
+			// Emit an event.
+			Self::deposit_event(Event::SomethingInserted(key, something));
+			// Return a successful DispatchResultWithPostInfo
+			Ok(())
 		}
 	}
 }
